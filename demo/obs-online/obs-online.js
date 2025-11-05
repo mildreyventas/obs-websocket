@@ -403,68 +403,155 @@ class OBSOnline {
             return;
         }
 
-        // Advertencia: streaming RTMP real no es posible desde el navegador
-        const continuar = confirm(
-            `📡 STREAMING A: ${this.streamConfig.platform || 'RTMP Server'}\n\n` +
-            `⚠️ IMPORTANTE: El navegador NO puede hacer streaming RTMP real.\n\n` +
-            `Para hacer streaming real necesitas:\n` +
-            `• Un servidor backend con FFmpeg\n` +
-            `• O usar OBS Studio desktop\n\n` +
-            `¿Continuar con modo simulado?`
-        );
+        // Conectar al servidor de streaming
+        try {
+            await this.connectToStreamingServer();
+        } catch (error) {
+            alert(`❌ Error al conectar con el servidor:\n\n${error.message}\n\nAsegúrate de que el servidor esté corriendo:\nnode streaming-server.js`);
+            return;
+        }
 
-        if (!continuar) return;
+        // Iniciar captura del canvas
+        const stream = this.canvas.captureStream(this.targetFPS);
+
+        // Crear MediaRecorder para enviar al servidor
+        this.streamRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp8',
+            videoBitsPerSecond: (this.bitrate || 2500) * 1000
+        });
+
+        this.streamRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0 && this.streamingWs && this.streamingWs.readyState === WebSocket.OPEN) {
+                this.streamingWs.send(event.data);
+            }
+        };
+
+        this.streamRecorder.start(100);
 
         this.isStreaming = true;
         this.stats.startTime = performance.now();
 
-        // Update UI
         const statusEl = document.getElementById('stream-status');
         if (statusEl) {
             statusEl.classList.remove('offline');
             statusEl.classList.add('live');
-            statusEl.textContent = 'LIVE (SIMULADO)';
+            statusEl.textContent = 'LIVE';
         }
 
-        console.log('✅ Stream started (simulated mode)');
-        console.log('📡 RTMP URL:', this.streamConfig.rtmpUrl);
-        console.log('🔑 Stream Key:', this.streamConfig.streamKey.substring(0, 4) + '****');
+        console.log('✅ Streaming REAL iniciado');
+        console.log('📡 RTMP:', this.streamConfig.rtmpUrl);
+        console.log('🔑 Key:', this.streamConfig.streamKey.substring(0, 4) + '****');
         console.log('📺 Platform:', this.streamConfig.platform);
 
-        // Mostrar notificación en pantalla
         const statusBar = document.getElementById('status-text');
         if (statusBar) {
-            const originalText = statusBar.textContent;
-            statusBar.textContent = `📡 Streaming (SIMULADO) a ${this.streamConfig.platform || 'RTMP'}`;
+            statusBar.textContent = `📡 LIVE en ${this.streamConfig.platform || 'RTMP'}`;
             statusBar.style.color = '#ff0000';
-
-            setTimeout(() => {
-                statusBar.textContent = originalText;
-                statusBar.style.color = '';
-            }, 5000);
         }
 
-        // Emit event
         this.emitEvent('StreamStateChanged', {
             outputActive: true,
             outputState: 'OBS_WEBSOCKET_OUTPUT_STARTED'
         });
     }
 
+    async connectToStreamingServer() {
+        return new Promise((resolve, reject) => {
+            console.log('🔌 Conectando al servidor...');
+
+            this.streamingWs = new WebSocket(this.streamingServerUrl);
+
+            this.streamingWs.onopen = () => {
+                console.log('✅ Conectado al servidor');
+
+                this.streamingWs.send(JSON.stringify({
+                    type: 'config',
+                    platform: this.streamConfig.platform,
+                    rtmpUrl: this.streamConfig.rtmpUrl,
+                    streamKey: this.streamConfig.streamKey,
+                    fps: this.targetFPS,
+                    bitrate: this.bitrate || 2500
+                }));
+
+                const configHandler = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'config_received') {
+                        console.log('✅ Configuración aceptada');
+                        this.streamingWs.removeEventListener('message', configHandler);
+
+                        this.streamingWs.send(JSON.stringify({
+                            type: 'start_stream'
+                        }));
+
+                        resolve();
+                    }
+                };
+
+                this.streamingWs.addEventListener('message', configHandler);
+            };
+
+            this.streamingWs.onerror = () => {
+                reject(new Error('No se pudo conectar al servidor'));
+            };
+
+            this.streamingWs.onclose = () => {
+                console.log('📴 Desconectado del servidor');
+            };
+
+            this.streamingWs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('📨 Servidor:', data);
+
+                    if (data.type === 'error') {
+                        alert('Error: ' + data.message);
+                    }
+                } catch (e) {}
+            };
+
+            setTimeout(() => {
+                if (this.streamingWs.readyState !== WebSocket.OPEN) {
+                    reject(new Error('Timeout'));
+                }
+            }, 5000);
+        });
+    }
+
     stopStreaming() {
         console.log('⏹️ Stopping stream...');
+
+        // Detener MediaRecorder
+        if (this.streamRecorder && this.streamRecorder.state !== 'inactive') {
+            this.streamRecorder.stop();
+            this.streamRecorder = null;
+        }
+
+        // Cerrar WebSocket
+        if (this.streamingWs) {
+            this.streamingWs.send(JSON.stringify({ type: 'stop_stream' }));
+            this.streamingWs.close();
+            this.streamingWs = null;
+        }
 
         this.isStreaming = false;
         this.stats.startTime = null;
 
-        // Update UI
-        document.getElementById('stream-status').classList.remove('live');
-        document.getElementById('stream-status').classList.add('offline');
-        document.getElementById('stream-status').textContent = 'OFFLINE';
+        const statusEl = document.getElementById('stream-status');
+        const statusBar = document.getElementById('status-text');
+
+        if (statusEl) {
+            statusEl.classList.remove('live');
+            statusEl.classList.add('offline');
+            statusEl.textContent = 'OFFLINE';
+        }
+
+        if (statusBar) {
+            statusBar.textContent = 'Listo para transmitir';
+            statusBar.style.color = '';
+        }
 
         console.log('✅ Stream stopped');
 
-        // Emit event
         this.emitEvent('StreamStateChanged', {
             outputActive: false,
             outputState: 'OBS_WEBSOCKET_OUTPUT_STOPPED'
