@@ -392,15 +392,52 @@ class OBSOnline {
     async startStreaming() {
         console.log('▶️ Starting stream...');
 
+        // Verificar si hay configuración de streaming
+        if (!this.streamConfig || !this.streamConfig.rtmpUrl || !this.streamConfig.streamKey) {
+            alert('⚠️ No hay configuración de streaming.\n\nPor favor:\n1. Click en ⚙️ Configuración\n2. Selecciona tu plataforma (YouTube, Twitch, Facebook)\n3. Ingresa tu Stream Key\n4. Guarda la configuración');
+            return;
+        }
+
+        // Advertencia: streaming RTMP real no es posible desde el navegador
+        const continuar = confirm(
+            `📡 STREAMING A: ${this.streamConfig.platform || 'RTMP Server'}\n\n` +
+            `⚠️ IMPORTANTE: El navegador NO puede hacer streaming RTMP real.\n\n` +
+            `Para hacer streaming real necesitas:\n` +
+            `• Un servidor backend con FFmpeg\n` +
+            `• O usar OBS Studio desktop\n\n` +
+            `¿Continuar con modo simulado?`
+        );
+
+        if (!continuar) return;
+
         this.isStreaming = true;
         this.stats.startTime = performance.now();
 
         // Update UI
-        document.getElementById('stream-status').classList.remove('offline');
-        document.getElementById('stream-status').classList.add('live');
-        document.getElementById('stream-status').textContent = 'LIVE';
+        const statusEl = document.getElementById('stream-status');
+        if (statusEl) {
+            statusEl.classList.remove('offline');
+            statusEl.classList.add('live');
+            statusEl.textContent = 'LIVE (SIMULADO)';
+        }
 
-        console.log('✅ Stream started (simulated)');
+        console.log('✅ Stream started (simulated mode)');
+        console.log('📡 RTMP URL:', this.streamConfig.rtmpUrl);
+        console.log('🔑 Stream Key:', this.streamConfig.streamKey.substring(0, 4) + '****');
+        console.log('📺 Platform:', this.streamConfig.platform);
+
+        // Mostrar notificación en pantalla
+        const statusBar = document.getElementById('status-text');
+        if (statusBar) {
+            const originalText = statusBar.textContent;
+            statusBar.textContent = `📡 Streaming (SIMULADO) a ${this.streamConfig.platform || 'RTMP'}`;
+            statusBar.style.color = '#ff0000';
+
+            setTimeout(() => {
+                statusBar.textContent = originalText;
+                statusBar.style.color = '';
+            }, 5000);
+        }
 
         // Emit event
         this.emitEvent('StreamStateChanged', {
