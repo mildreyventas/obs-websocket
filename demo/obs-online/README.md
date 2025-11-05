@@ -224,5 +224,6 @@ MIT License - Libre para usar y modificar
 
 ---
 
+👨‍💻 **Desarrollado por:** Hector Nolivos
 ⭐ Hecho con el protocolo obs-websocket como inspiración
 🎬 Ideal para demos, tutoriales y presentaciones online
