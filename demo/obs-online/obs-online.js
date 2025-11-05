@@ -272,13 +272,17 @@ class OBSOnline {
         this.stats.fps = Math.round(1000 / delta);
         this.stats.lastFrameTime = now;
 
-        // Update UI
-        document.getElementById('stat-fps').textContent = this.stats.fps;
-        document.getElementById('stat-frames').textContent = this.stats.frames;
+        // Update UI - solo si los elementos existen
+        const fpsEl = document.getElementById('stat-fps');
+        const framesEl = document.getElementById('stat-frames');
+        const durationEl = document.getElementById('stat-duration');
 
-        if (this.stats.startTime) {
+        if (fpsEl) fpsEl.textContent = this.stats.fps;
+        if (framesEl) framesEl.textContent = this.stats.frames;
+
+        if (this.stats.startTime && durationEl) {
             const duration = Math.floor((now - this.stats.startTime) / 1000);
-            document.getElementById('stat-duration').textContent = this.formatTime(duration);
+            durationEl.textContent = this.formatTime(duration);
         }
     }
 
