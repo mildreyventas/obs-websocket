@@ -35,7 +35,15 @@ class OBSOnline {
 
         // Streaming Server WebSocket
         this.streamingWs = null;
-        this.streamingServerUrl = 'ws://localhost:9000';
+        // Detectar si estamos en Codespaces o localhost
+        const isCodespaces = window.location.hostname.includes('github.dev') || window.location.hostname.includes('app.github.dev');
+        if (isCodespaces) {
+            // En Codespaces, usar la URL del puerto forwarded
+            const baseUrl = window.location.hostname;
+            this.streamingServerUrl = `wss://${baseUrl.replace('8081', '9000')}`;
+        } else {
+            this.streamingServerUrl = 'ws://localhost:9000';
+        }
         this.canStream = false;
 
         // Animation
