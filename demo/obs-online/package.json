@@ -1,0 +1,29 @@
+{
+  "name": "obs-online-streaming-server",
+  "version": "1.0.0",
+  "description": "RTMP Streaming Server for OBS Online - Enables real streaming to YouTube, Twitch, Facebook",
+  "main": "streaming-server.js",
+  "scripts": {
+    "start": "node streaming-server.js",
+    "dev": "nodemon streaming-server.js"
+  },
+  "keywords": [
+    "obs",
+    "streaming",
+    "rtmp",
+    "ffmpeg",
+    "websocket",
+    "live"
+  ],
+  "author": "Hector Nolivos",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

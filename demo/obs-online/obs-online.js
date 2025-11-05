@@ -33,6 +33,11 @@ class OBSOnline {
         this.wsServer = null;
         this.wsClients = [];
 
+        // Streaming Server WebSocket
+        this.streamingWs = null;
+        this.streamingServerUrl = 'ws://localhost:9000';
+        this.canStream = false;
+
         // Animation
         this.animationFrame = null;
         this.targetFPS = 30;
