@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Online - Streaming Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #18181b;
+            color: #efeff1;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 60px 1fr 200px;
+            height: 100vh;
+            gap: 1px;
+            background: #0e0e10;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: #18181b;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 2px solid #9147ff;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #9147ff;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Scenes Panel */
+        .scenes-panel {
+            grid-row: 2 / 4;
+            background: #18181b;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #adadb8;
+            text-transform: uppercase;
+        }
+
+        .scene-item {
+            background: #26262c;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .scene-item:hover {
+            background: #2f2f35;
+        }
+
+        .scene-item.active {
+            border-color: #9147ff;
+            background: #2f2f35;
+        }
+
+        /* Preview Canvas */
+        .preview-container {
+            background: #0e0e10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        #preview-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            background: #000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recording-indicator.active {
+            display: flex;
+        }
+
+        .rec-dot {
+            width: 12px;
+            height: 12px;
+            background: #ff0000;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Sources Panel */
+        .sources-panel {
+            background: #18181b;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .source-item {
+            background: #26262c;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            grid-column: 2;
+            background: #18181b;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 10px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: #9147ff;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+
+        .btn-success {
+            background: #1db954;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #26262c;
+            color: #efeff1;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            grid-column: 1;
+            background: #18181b;
+            padding: 15px;
+            font-size: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #26262c;
+        }
+
+        .stat-label {
+            color: #adadb8;
+        }
+
+        .stat-value {
+            color: #efeff1;
+            font-weight: bold;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            grid-column: 3;
+            background: #18181b;
+            padding: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #adadb8;
+            margin-bottom: 5px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 8px;
+            background: #26262c;
+            border: 1px solid #3a3a3d;
+            color: #efeff1;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-badge.live {
+            background: #ff0000;
+            color: white;
+        }
+
+        .status-badge.offline {
+            background: #26262c;
+            color: #adadb8;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🎬 OBS Online</h1>
+                <span class="status-badge offline" id="stream-status">OFFLINE</span>
+            </div>
+            <div class="header-controls">
+                <span id="ws-status">WebSocket: Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Scenes Panel -->
+        <div class="scenes-panel">
+            <div class="panel-title">Escenas</div>
+            <div id="scenes-list">
+                <div class="scene-item active" data-scene="Scene 1">
+                    <div>📹 Scene 1</div>
+                </div>
+                <div class="scene-item" data-scene="Scene 2">
+                    <div>🎥 Scene 2</div>
+                </div>
+                <div class="scene-item" data-scene="Scene 3">
+                    <div>🎬 Scene 3</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="preview-container">
+            <canvas id="preview-canvas" width="1920" height="1080"></canvas>
+            <div class="canvas-overlay">
+                <div class="recording-indicator" id="rec-indicator">
+                    <div class="rec-dot"></div>
+                    <span id="rec-time">00:00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sources Panel -->
+        <div class="sources-panel">
+            <div class="panel-title">Fuentes</div>
+            <div id="sources-list">
+                <div class="source-item">
+                    👁️ Sin fuentes
+                </div>
+            </div>
+            <button class="btn-secondary" style="width: 100%; margin-top: 10px;" onclick="addSource()">
+                ➕ Agregar Fuente
+            </button>
+        </div>
+
+        <!-- Stats Panel -->
+        <div class="stats-panel">
+            <div class="panel-title">Estadísticas</div>
+            <div class="stat-item">
+                <span class="stat-label">FPS:</span>
+                <span class="stat-value" id="stat-fps">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Frames:</span>
+                <span class="stat-value" id="stat-frames">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Duración:</span>
+                <span class="stat-value" id="stat-duration">00:00:00</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Escena:</span>
+                <span class="stat-value" id="stat-scene">Scene 1</span>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <div class="panel-title">Controles</div>
+            <div class="control-row">
+                <button class="btn-primary" onclick="startStreaming()">
+                    ▶️ Iniciar Stream
+                </button>
+                <button class="btn-danger" onclick="stopStreaming()" style="display: none;" id="stop-stream-btn">
+                    ⏹️ Detener Stream
+                </button>
+            </div>
+            <div class="control-row">
+                <button class="btn-danger" onclick="startRecording()" id="rec-btn">
+                    🔴 Iniciar Grabación
+                </button>
+                <button class="btn-secondary" onclick="stopRecording()" style="display: none;" id="stop-rec-btn">
+                    ⏹️ Detener Grabación
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel">
+            <div class="panel-title">Configuración</div>
+            <div class="input-group">
+                <label>Resolución</label>
+                <select id="resolution">
+                    <option value="1920x1080">1920x1080 (Full HD)</option>
+                    <option value="1280x720">1280x720 (HD)</option>
+                    <option value="854x480">854x480 (SD)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>FPS</label>
+                <select id="fps">
+                    <option value="60">60 FPS</option>
+                    <option value="30" selected>30 FPS</option>
+                    <option value="24">24 FPS</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>WebSocket Port</label>
+                <input type="number" id="ws-port" value="4456" readonly>
+            </div>
+            <button class="btn-secondary" style="width: 100%;" onclick="startWebSocketServer()">
+                🔌 Iniciar WebSocket Server
+            </button>
+        </div>
+    </div>
+
+    <script src="obs-online.js"></script>
+</body>
+</html>

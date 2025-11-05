@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Online Pro - Professional Streaming Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1e1e1e;
+            color: #cccccc;
+            overflow: hidden;
+            font-size: 13px;
+        }
+
+        /* Main Layout */
+        .app {
+            display: grid;
+            grid-template-areas:
+                "header header header header"
+                "scenes preview preview mixer"
+                "sources preview preview mixer"
+                "sources controls controls controls";
+            grid-template-columns: 250px 1fr 1fr 250px;
+            grid-template-rows: 40px 1fr 200px 80px;
+            height: 100vh;
+            gap: 2px;
+            background: #000;
+        }
+
+        /* Header */
+        .header {
+            grid-area: header;
+            background: #2d2d30;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            border-bottom: 1px solid #007acc;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 16px;
+            color: #007acc;
+        }
+
+        .header-menu {
+            display: flex;
+            gap: 15px;
+        }
+
+        .menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-radius: 3px;
+        }
+
+        .menu-item:hover {
+            background: #3e3e42;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.recording {
+            background: #e81123;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-badge.streaming {
+            background: #e81123;
+            color: white;
+        }
+
+        .status-badge.idle {
+            background: #3e3e42;
+            color: #999;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Scenes Panel */
+        .scenes-panel {
+            grid-area: scenes;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 8px 12px;
+            background: #2d2d30;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .scene-item {
+            padding: 10px 12px;
+            margin-bottom: 2px;
+            background: #2d2d30;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid transparent;
+        }
+
+        .scene-item:hover {
+            background: #3e3e42;
+        }
+
+        .scene-item.active {
+            background: #094771;
+            border-left-color: #007acc;
+            color: #fff;
+        }
+
+        .scene-actions {
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .scene-item:hover .scene-actions {
+            opacity: 1;
+        }
+
+        .icon-btn {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Sources Panel */
+        .sources-panel {
+            grid-area: sources;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .source-item {
+            padding: 8px 12px;
+            margin-bottom: 2px;
+            background: #2d2d30;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .source-item:hover {
+            background: #3e3e42;
+        }
+
+        .source-item.selected {
+            background: #094771;
+            color: #fff;
+        }
+
+        .source-visibility {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .source-icon {
+            width: 16px;
+            text-align: center;
+        }
+
+        .source-name {
+            flex: 1;
+        }
+
+        /* Preview */
+        .preview-panel {
+            grid-area: preview;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        .preview-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+            border: 1px solid #3e3e42;
+        }
+
+        #preview-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            image-rendering: crisp-edges;
+        }
+
+        .canvas-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .canvas-btn {
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #555;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .canvas-btn:hover {
+            background: rgba(0,0,0,0.9);
+            border-color: #007acc;
+        }
+
+        /* Audio Mixer */
+        .mixer-panel {
+            grid-area: mixer;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mixer-channel {
+            padding: 10px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .mixer-label {
+            font-size: 11px;
+            margin-bottom: 5px;
+            color: #999;
+        }
+
+        .mixer-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mixer-fader {
+            flex: 1;
+            height: 4px;
+            background: #3e3e42;
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .mixer-fader-fill {
+            height: 100%;
+            background: #007acc;
+            border-radius: 2px;
+            width: 75%;
+        }
+
+        .mixer-mute {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+        }
+
+        .mixer-mute:hover {
+            background: #3e3e42;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            grid-area: controls;
+            background: #252526;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 0 20px;
+        }
+
+        .control-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .control-btn.primary {
+            background: #007acc;
+            color: white;
+        }
+
+        .control-btn.danger {
+            background: #e81123;
+            color: white;
+        }
+
+        .control-btn.secondary {
+            background: #3e3e42;
+            color: #cccccc;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Action Buttons */
+        .action-btns {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px;
+            background: #3e3e42;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #007acc;
+            color: white;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+            color: #999;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #3e3e42;
+            border: 1px solid #555;
+            color: #cccccc;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background: #2d2d30;
+            border-top: 1px solid #3e3e42;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">🎬 OBS Online Pro</div>
+                <div class="header-menu">
+                    <div class="menu-item" onclick="showSettings()">Archivo</div>
+                    <div class="menu-item">Editar</div>
+                    <div class="menu-item">Ver</div>
+                    <div class="menu-item">Herramientas</div>
+                    <div class="menu-item">Ayuda</div>
+                </div>
+            </div>
+            <div class="status-indicators">
+                <div class="status-badge idle" id="rec-status">No grabando</div>
+                <div class="status-badge idle" id="stream-status">Sin transmitir</div>
+                <div id="stats-display">0 FPS | 0 frames</div>
+            </div>
+        </div>
+
+        <!-- Scenes -->
+        <div class="scenes-panel">
+            <div class="panel-header">
+                <span>Escenas</span>
+                <span class="icon-btn" onclick="addScene()">➕</span>
+            </div>
+            <div class="panel-content" id="scenes-list">
+                <!-- Scenes will be populated here -->
+            </div>
+            <div class="action-btns">
+                <button class="action-btn" onclick="addScene()">➕ Agregar</button>
+                <button class="action-btn" onclick="removeScene()">➖ Eliminar</button>
+                <button class="action-btn" onclick="duplicateScene()">📋 Duplicar</button>
+            </div>
+        </div>
+
+        <!-- Sources -->
+        <div class="sources-panel">
+            <div class="panel-header">
+                <span>Fuentes</span>
+                <span class="icon-btn" onclick="showAddSourceModal()">➕</span>
+            </div>
+            <div class="panel-content" id="sources-list">
+                <!-- Sources will be populated here -->
+            </div>
+            <div class="action-btns">
+                <button class="action-btn" onclick="showAddSourceModal()">➕ Agregar</button>
+                <button class="action-btn" onclick="removeSource()">➖ Eliminar</button>
+                <button class="action-btn" onclick="moveSourceUp()">⬆️ Subir</button>
+                <button class="action-btn" onclick="moveSourceDown()">⬇️ Bajar</button>
+                <button class="action-btn" onclick="showSourceProperties()">⚙️ Propiedades</button>
+                <button class="action-btn" onclick="showFilters()">🎨 Filtros</button>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="preview-panel">
+            <div class="panel-header">
+                <span>Vista Previa</span>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span id="preview-res" style="font-size: 11px; color: #666;">1920x1080</span>
+                    <label><input type="checkbox" id="studio-mode" onchange="toggleStudioMode()"> Modo Estudio</label>
+                </div>
+            </div>
+            <div class="preview-container">
+                <canvas id="preview-canvas" width="1920" height="1080"></canvas>
+                <div class="canvas-controls">
+                    <button class="canvas-btn" onclick="fitToScreen()">📐 Ajustar</button>
+                    <button class="canvas-btn" onclick="resetTransform()">🔄 Resetear</button>
+                    <button class="canvas-btn" onclick="toggleGrid()">📊 Grid</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Mixer -->
+        <div class="mixer-panel">
+            <div class="panel-header">Mezclador de Audio</div>
+            <div class="panel-content" id="mixer-channels">
+                <div class="mixer-channel">
+                    <div class="mixer-label">Desktop Audio</div>
+                    <div class="mixer-controls">
+                        <div class="mixer-fader">
+                            <div class="mixer-fader-fill"></div>
+                        </div>
+                        <div class="mixer-mute">🔊</div>
+                    </div>
+                </div>
+                <div class="mixer-channel">
+                    <div class="mixer-label">Mic/Aux</div>
+                    <div class="mixer-controls">
+                        <div class="mixer-fader">
+                            <div class="mixer-fader-fill"></div>
+                        </div>
+                        <div class="mixer-mute">🔊</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-panel">
+            <button class="control-btn primary" id="stream-btn" onclick="toggleStream()">
+                📡 Iniciar Transmisión
+            </button>
+            <button class="control-btn danger" id="record-btn" onclick="toggleRecord()">
+                🔴 Iniciar Grabación
+            </button>
+            <button class="control-btn secondary" onclick="showSettings()">
+                ⚙️ Configuración
+            </button>
+            <button class="control-btn secondary" onclick="exitApp()">
+                🚪 Salir
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Source Modal -->
+    <div class="modal" id="add-source-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Agregar Fuente</div>
+                <div class="modal-close" onclick="closeModal('add-source-modal')">×</div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Tipo de Fuente</label>
+                    <select class="form-input" id="source-type">
+                        <option value="camera">📹 Dispositivo de Captura de Video</option>
+                        <option value="screen">🖥️ Captura de Pantalla</option>
+                        <option value="window">🪟 Captura de Ventana</option>
+                        <option value="text">📝 Texto (GDI+)</option>
+                        <option value="image">🖼️ Imagen</option>
+                        <option value="color">🎨 Fuente de Color</option>
+                        <option value="browser">🌐 Navegador</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nombre de la Fuente</label>
+                    <input type="text" class="form-input" id="source-name" placeholder="Ingresa un nombre...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeModal('add-source-modal')">Cancelar</button>
+                <button class="control-btn primary" onclick="createSource()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Source Properties Modal -->
+    <div class="modal" id="source-props-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Propiedades de la Fuente</div>
+                <div class="modal-close" onclick="closeModal('source-props-modal')">×</div>
+            </div>
+            <div class="modal-body" id="source-props-content">
+                <!-- Dynamic properties will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeModal('source-props-modal')">Cancelar</button>
+                <button class="control-btn primary" onclick="saveSourceProperties()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title">⚙️ Configuración de OBS Online Pro</div>
+                <div class="modal-close" onclick="closeModal('settings-modal')">×</div>
+            </div>
+            <div class="modal-body">
+                <h3 style="margin-bottom: 15px; color: #007acc;">🎬 Configuración de Video</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Resolución de Salida</label>
+                    <select class="form-input" id="config-resolution">
+                        <option value="1920x1080">1920x1080 (Full HD)</option>
+                        <option value="1280x720">1280x720 (HD)</option>
+                        <option value="854x480">854x480 (SD)</option>
+                        <option value="640x360">640x360 (Low)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">FPS (Frames por Segundo)</label>
+                    <select class="form-input" id="config-fps">
+                        <option value="60">60 FPS</option>
+                        <option value="30" selected>30 FPS</option>
+                        <option value="24">24 FPS</option>
+                        <option value="15">15 FPS</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bitrate de Video (kbps)</label>
+                    <input type="number" class="form-input" id="config-bitrate" value="5000" min="500" max="50000">
+                </div>
+
+                <hr style="border: 1px solid #3e3e42; margin: 20px 0;">
+
+                <h3 style="margin-bottom: 15px; color: #007acc;">📡 Configuración de Streaming</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Plataforma de Streaming</label>
+                    <select class="form-input" id="config-platform" onchange="updateRtmpUrl()">
+                        <option value="">-- Selecciona plataforma --</option>
+                        <option value="youtube">YouTube Live</option>
+                        <option value="twitch">Twitch</option>
+                        <option value="facebook">Facebook Live</option>
+                        <option value="custom">Servidor Personalizado (RTMP)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">🔗 URL del Servidor (RTMP)</label>
+                    <input type="text" class="form-input" id="config-server-url"
+                           placeholder="rtmp://a.rtmp.youtube.com/live2"
+                           style="font-family: monospace;">
+                    <small style="color: #999; font-size: 11px; display: block; margin-top: 5px;">
+                        Ejemplos:<br>
+                        • YouTube: rtmp://a.rtmp.youtube.com/live2<br>
+                        • Twitch: rtmp://live.twitch.tv/app<br>
+                        • Facebook: rtmps://live-api-s.facebook.com:443/rtmp/
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">🔑 Stream Key (Clave de Transmisión)</label>
+                    <input type="password" class="form-input" id="config-stream-key"
+                           placeholder="xxxx-xxxx-xxxx-xxxx"
+                           style="font-family: monospace;">
+                    <small style="color: #999; font-size: 11px; display: block; margin-top: 5px;">
+                        ⚠️ Mantén tu Stream Key en secreto. Nunca la compartas.
+                    </small>
+                    <label style="margin-top: 10px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="show-stream-key" onchange="toggleStreamKeyVisibility()">
+                        <span style="font-size: 12px;">Mostrar clave</span>
+                    </label>
+                </div>
+
+                <hr style="border: 1px solid #3e3e42; margin: 20px 0;">
+
+                <h3 style="margin-bottom: 15px; color: #007acc;">💾 Configuración de Grabación</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Formato de Grabación</label>
+                    <select class="form-input" id="config-record-format">
+                        <option value="webm">WebM (VP9)</option>
+                        <option value="mp4">MP4 (H.264) - Simulado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Calidad de Grabación</label>
+                    <select class="form-input" id="config-record-quality">
+                        <option value="high">Alta (Archivo grande)</option>
+                        <option value="medium" selected>Media (Balanceado)</option>
+                        <option value="low">Baja (Archivo pequeño)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="closeModal('settings-modal')">Cancelar</button>
+                <button class="control-btn primary" onclick="saveSettings()">💾 Guardar Configuración</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="obs-online.js"></script>
+</body>
+</html>
